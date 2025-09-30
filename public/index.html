@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>zkGrid</title>
+<style>
+  html,body{height:100%;margin:0;display:flex;align-items:center;justify-content:center;background:#222}
+  canvas{max-width:100%;max-height:100%;display:block}
+  #spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 128px;
+    height: 128px;
+    margin: -80px 0 0 -80px;
+    border: 16px solid rgba(255,255,255,0.2);
+    border-top: 16px solid #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+    z-index: 10;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  #overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+<div id="spinner"></div>
+<div id="overlay"></div>
+<canvas id="grid"></canvas>
+<script>
+(() => {
+  const spinner = document.getElementById('spinner');
+  const overlay = document.getElementById('overlay');
+  const M = 16;
+  const N = 16;
+  const BORDER = 1;
+  const DOT_RADIUS = 2;
+  const canvas = document.getElementById('grid');
+  const ctx = canvas.getContext('2d');
+  let cssSide, cell, dots = [], overlays = {};
+  let isReloading = false;
+  let empty = 0;
+  let seed = null;
+  let data = null;
+
+  // Fetch backend data
+  async function fetchData() {
+    try {
+      const res = await fetch('/api/data');
+      const json = await res.json();
+      seed = json.seed;
+      data = json.data;
+      draw();
+    } catch (e) {
+      console.error('Failed to fetch data:', e);
+    }
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    cssSide = Math.min(window.innerWidth, window.innerHeight) - 20;
+    canvas.style.width = cssSide + 'px';
+    canvas.style.height = cssSide + 'px';
+    canvas.width = cssSide * dpr;
+    canvas.height = cssSide * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+
+    cell = cssSide / M;
+    generateDots();
+    renderGrid();
+  }
+
+  function generateDots() {
+    dots = [];
+    if (!data) return;
+    for (const item of data) {
+      if (item.x === 0 && item.y === 0) {
+        empty = item.i * M + item.j;
+        dots.push(null);
+        continue;
+      }
+      // Use coordinates x,y inside cell with padding
+      const offsetX = ((item.x + 0.5) / N) * (cell - 8) + 4;
+      const offsetY = ((item.y + 0.5) / N) * (cell - 8) + 4;
+      const cx = item.j * cell + offsetX;
+      const cy = item.i * cell + offsetY;
+      dots.push({ cx, cy });
+    }
+  }
+
+  function renderGrid() {
+    ctx.clearRect(0, 0, cssSide, cssSide);
+    const halfB = BORDER / 2;
+
+    // Grid lines
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = BORDER;
+    ctx.beginPath();
+    for (let i = 0; i <= M; i++) {
+      const pos = i * cell;
+      ctx.moveTo(pos, 0); ctx.lineTo(pos, cssSide);
+      ctx.moveTo(0, pos); ctx.lineTo(cssSide, pos);
+    }
+    ctx.stroke();
+    ctx.strokeRect(halfB, halfB, cssSide - BORDER, cssSide - BORDER);
+
+    // Draw dots
+    ctx.fillStyle = '#fff';
+    dots.forEach(d => {
+      if (!d) return;
+      ctx.beginPath();
+      ctx.arc(d.cx, d.cy, DOT_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Draw overlays
+    for (const key in overlays) {
+      const idx = parseInt(key, 10);
+      const row = Math.floor(idx / M);
+      const col = idx % M;
+      ctx.fillStyle = overlays[key].color;
+      ctx.fillRect(col * cell, row * cell, cell, cell);
+    }
+  }
+
+  canvas.addEventListener('click', e => {
+    if (isReloading) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const col = Math.floor(x / cell);
+    const row = Math.floor(y / cell);
+    const idx = row * M + col;
+
+    if (idx === empty) {
+      if (isReloading) return;
+      isReloading = true;
+
+      overlays[idx] = { color: 'rgba(0,255,0,0.5)', expire: Date.now() + 1000 };
+      renderGrid();
+      spinner.style.display = 'block';
+      overlay.style.display = 'block';
+
+      setTimeout(() => {
+        overlays = {};
+        fetchData().finally(() => {
+          isReloading = false;
+          spinner.style.display = 'none';
+          overlay.style.display = 'none';
+        });
+      }, 1000);
+
+    } else {
+      overlays[idx] = { color: 'rgba(255,0,0,0.5)', expire: Date.now() + 1000 };
+      renderGrid();
+
+      setTimeout(() => {
+        delete overlays[idx];
+        renderGrid();
+      }, 1000);
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (data) draw();
+  });
+
+  fetchData();
+})();
+</script>
+</body>
+</html>
