@@ -150,22 +150,24 @@
       if (isReloading) return;
       isReloading = true;
 
-      overlays[idx] = { color: 'rgba(0,255,0,0.5)', expire: Date.now() + 1000 };
+      overlays[idx] = { color: 'rgba(0,255,0,0.5)' };
       renderGrid();
       spinner.style.display = 'block';
       overlay.style.display = 'block';
 
       setTimeout(() => {
         overlays = {};
-        fetchData().finally(() => {
-          isReloading = false;
-          spinner.style.display = 'none';
-          overlay.style.display = 'none';
-        });
-      }, 1000);
+        renderGrid();
+      }, 500);
+      
+      fetchData().finally(() => {
+        isReloading = false;
+        spinner.style.display = 'none';
+        overlay.style.display = 'none';
+      });
 
     } else {
-      overlays[idx] = { color: 'rgba(255,0,0,0.5)', expire: Date.now() + 1000 };
+      overlays[idx] = { color: 'rgba(255,0,0,0.5)' };
       renderGrid();
 
       setTimeout(() => {
@@ -179,7 +181,9 @@
     if (data) draw();
   });
 
-  fetchData();
+  spinner.style.display = 'block';
+  fetchData().finally(() => { spinner.style.display = 'none' });
+
 })();
 </script>
 </body>
