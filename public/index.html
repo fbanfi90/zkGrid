@@ -34,16 +34,28 @@
     display: none;
     z-index: 5;
   }
+  #qrcode {
+    position: absolute;
+    background: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    display: none;
+    z-index: 15;
+  }
 </style>
 </head>
 <body>
 <div id="spinner"></div>
 <div id="overlay"></div>
+<div id="qrcode"></div>
 <canvas id="grid"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/snarkjs@0.7.4/build/snarkjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
 (() => {
   const spinner = document.getElementById('spinner');
   const overlay = document.getElementById('overlay');
+  const qrcode = document.getElementById('qrcode');
   const M = 16;
   const N = 16;
   const BORDER = 1;
@@ -68,6 +80,42 @@
       console.error('Failed to fetch data:', e);
     }
   }
+
+  async function fetchFile(path) {
+    const res = await fetch(path);
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async function generateProof(i,j) {
+    const inputs = { s: seed.toString(), i, j };
+    const { proof } = await snarkjs.groth16.fullProve(inputs, "lsbcheck.wasm", "lsbcheck.zkey");
+    return proof;
+  }
+
+  function showQRCode(obj) {
+    qrcode.style.display = 'block';
+    qrcode.innerHTML = "";
+    QRCode.toCanvas(
+      JSON.stringify(obj),
+      { errorCorrectionLevel: "M" },
+      (err, canvas) => {
+        if (err) console.error(err);
+        else qrcode.appendChild(canvas);
+      }
+    );
+  }
+
+  qrcode.addEventListener("click", () => {
+    overlay.style.display = "block";
+    qrcode.style.display = 'none';
+    qrcode.innerHTML = "";
+    spinner.style.display = 'block';
+    fetchData().finally(() => {
+      isReloading = false;
+      spinner.style.display = 'none';
+      overlay.style.display = 'none';
+    });
+  });
 
   function draw() {
     const dpr = window.devicePixelRatio || 1;
@@ -137,7 +185,7 @@
     }
   }
 
-  canvas.addEventListener('click', e => {
+  canvas.addEventListener('click', async e => {
     if (isReloading) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -159,12 +207,36 @@
         overlays = {};
         renderGrid();
       }, 500);
-      
+
+
+      try {
+        const proof = await generateProof(row, col);
+        spinner.style.display = 'none';
+        showQRCode(proof);
+      } catch (err) {
+        console.error("Proof generation failed:", err);
+      } finally {
+        //spinner.style.display = 'none';
+        isReloading = false;
+      }
+
+      /*setTimeout(() => {
+        overlays = {};
+        renderGrid();
+      }, 500);
+   
+      try {
+        const { proof, publicSignals } = await generateProof(row, col);
+        showQRCode({ proof, publicSignals });
+      } catch (err) {
+        console.error("Proof generation failed:", err);
+      }
+   
       fetchData().finally(() => {
         isReloading = false;
         spinner.style.display = 'none';
         overlay.style.display = 'none';
-      });
+      });*/
 
     } else {
       overlays[idx] = { color: 'rgba(255,0,0,0.5)' };
