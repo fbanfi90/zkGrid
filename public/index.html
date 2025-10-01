@@ -61,7 +61,6 @@
     <div id='spinner'></div>
     <div id='qrcode'></div>
     <script src='https://cdn.jsdelivr.net/npm/snarkjs@0.7.4/build/snarkjs.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js'></script>
     <script src='https://unpkg.com/qr-code-styling@latest/lib/qr-code-styling.js'></script>
     <script>
     (() => {
@@ -70,7 +69,10 @@
       const spinner = document.getElementById('spinner');
       const qrcode = document.getElementById('qrcode');
       const ctx = canvas.getContext('2d');
-      
+
+      const wasmPromise = fetch('lsbcheck.wasm').then(r => r.arrayBuffer());
+      const zkeyPromise = fetch('lsbcheck.zkey').then(r => r.arrayBuffer());
+
       const M = 16;
       const N = 16;
       const BORDER = 1;
@@ -97,30 +99,17 @@
       }
 
       async function generateProof(i, j) {
+        const wasm = await wasmPromise;
+        const zkey = await zkeyPromise;
         const inputs = { s: seed.toString(), i, j };
         const { proof } = await snarkjs.groth16.fullProve(
           inputs,
-          'lsbcheck.wasm',
-          'lsbcheck.zkey'
+          new Uint8Array(wasm),
+          new Uint8Array(zkey)
         );
         return proof;
       }
 
-      // Old
-      function showQRCode_(obj) {
-        qrcode.innerHTML = '';
-        qrcode.style.display = 'block';
-        QRCode.toCanvas(
-          JSON.stringify(obj),
-          { errorCorrectionLevel: 'M' },
-          (err, canvas) => {
-            if (err) console.error(err);
-            else qrcode.appendChild(canvas);
-          }
-        );
-      }
-
-      // New
       function showQRCode(obj) {
         qrcode.innerHTML = '';
         qrcode.style.display = 'block';
@@ -162,22 +151,6 @@
               'color': '#000000'
           }
         }).append(qrcode);
-        // new QRCodeStyling({
-        //   width: 512,
-        //   height: 512,
-        //   data: JSON.stringify(obj),
-        //   image: 'zkGrid.png',
-        //   qrOptions: {
-        //     errorCorrectionLevel: 'L'
-        //   },
-        //   dotsOptions: {
-        //     type: 'rounded',
-        //     color: '#000000'
-        //   },
-        //   backgroundOptions: {
-        //     color: '#ffffff'
-        //   },
-        // }).append(qrcode);
       }
       
       function showError() {
@@ -323,6 +296,7 @@
             showQRCode(proof);
           } catch (err) {
             spinner.style.display = 'none';
+            console.log(err);
             showError();
           }
         }
