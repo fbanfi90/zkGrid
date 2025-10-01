@@ -1,262 +1,281 @@
 <!doctype html>
 <html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>zkGrid</title>
-<style>
-  html,body{height:100%;margin:0;display:flex;align-items:center;justify-content:center;background:#222}
-  canvas{max-width:100%;max-height:100%;display:block}
-  #spinner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 128px;
-    height: 128px;
-    margin: -80px 0 0 -80px;
-    border: 16px solid rgba(255,255,255,0.2);
-    border-top: 16px solid #fff;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    display: none;
-    z-index: 10;
-  }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  #overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.7);
-    display: none;
-    z-index: 5;
-  }
-  #qrcode {
-    position: absolute;
-    background: #fff;
-    padding: 8px;
-    border-radius: 8px;
-    display: none;
-    z-index: 15;
-  }
-</style>
-</head>
-<body>
-<div id="spinner"></div>
-<div id="overlay"></div>
-<div id="qrcode"></div>
-<canvas id="grid"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/snarkjs@0.7.4/build/snarkjs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-<script>
-(() => {
-  const spinner = document.getElementById('spinner');
-  const overlay = document.getElementById('overlay');
-  const qrcode = document.getElementById('qrcode');
-  const M = 16;
-  const N = 16;
-  const BORDER = 1;
-  const DOT_RADIUS = 2;
-  const canvas = document.getElementById('grid');
-  const ctx = canvas.getContext('2d');
-  let cssSide, cell, dots = [], overlays = {};
-  let isReloading = false;
-  let empty = 0;
-  let seed = null;
-  let data = null;
-
-  // Fetch backend data
-  async function fetchData() {
-    try {
-      const res = await fetch('/api/data');
-      const json = await res.json();
-      seed = json.seed;
-      data = json.data;
-      draw();
-    } catch (e) {
-      console.error('Failed to fetch data:', e);
-    }
-  }
-
-  async function fetchFile(path) {
-    const res = await fetch(path);
-    return new Uint8Array(await res.arrayBuffer());
-  }
-
-  async function generateProof(i,j) {
-    const inputs = { s: seed.toString(), i, j };
-    const { proof } = await snarkjs.groth16.fullProve(inputs, "lsbcheck.wasm", "lsbcheck.zkey");
-    return proof;
-  }
-
-  function showQRCode(obj) {
-    qrcode.style.display = 'block';
-    qrcode.innerHTML = "";
-    QRCode.toCanvas(
-      JSON.stringify(obj),
-      { errorCorrectionLevel: "M" },
-      (err, canvas) => {
-        if (err) console.error(err);
-        else qrcode.appendChild(canvas);
+  <head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width,initial-scale=1'>
+    <title>zkGrid</title>
+    <style>
+      html,body {
+        height: 100%;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #222
       }
-    );
-  }
-
-  qrcode.addEventListener("click", () => {
-    overlay.style.display = "block";
-    qrcode.style.display = 'none';
-    qrcode.innerHTML = "";
-    spinner.style.display = 'block';
-    fetchData().finally(() => {
-      isReloading = false;
-      spinner.style.display = 'none';
-      overlay.style.display = 'none';
-    });
-  });
-
-  function draw() {
-    const dpr = window.devicePixelRatio || 1;
-    cssSide = Math.min(window.innerWidth, window.innerHeight) - 20;
-    canvas.style.width = cssSide + 'px';
-    canvas.style.height = cssSide + 'px';
-    canvas.width = cssSide * dpr;
-    canvas.height = cssSide * dpr;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(dpr, dpr);
-
-    cell = cssSide / M;
-    generateDots();
-    renderGrid();
-  }
-
-  function generateDots() {
-    dots = [];
-    if (!data) return;
-    for (const item of data) {
-      if (item.x === 0 && item.y === 0) {
-        empty = item.i * M + item.j;
-        dots.push(null);
-        continue;
+      canvas {
+        max-width: 100%;
+        max-height: 100%;
+        display: block
       }
-      // Use coordinates x,y inside cell with padding
-      const offsetX = ((item.x + 0.5) / N) * (cell - 8) + 4;
-      const offsetY = ((item.y + 0.5) / N) * (cell - 8) + 4;
-      const cx = item.j * cell + offsetX;
-      const cy = item.i * cell + offsetY;
-      dots.push({ cx, cy });
-    }
-  }
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        display: none;
+        z-index: 5;
+      }
+      #spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 128px;
+        height: 128px;
+        margin: -80px 0 0 -80px;
+        border: 16px solid rgba(255,255,255,0.2);
+        border-top: 16px solid #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: none;
+        z-index: 10;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      #qrcode {
+        position: absolute;
+        background: #fff;
+        padding: 8px;
+        border-radius: 8px;
+        display: none;
+        z-index: 15;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id='grid'></canvas>
+    <div id='overlay'></div>
+    <div id='spinner'></div>
+    <div id='qrcode'></div>
+    <script src='https://cdn.jsdelivr.net/npm/snarkjs@0.7.4/build/snarkjs.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js'></script>
+    <script>
+    (() => {
+      const canvas = document.getElementById('grid');
+      const overlay = document.getElementById('overlay');
+      const spinner = document.getElementById('spinner');
+      const qrcode = document.getElementById('qrcode');
+      const ctx = canvas.getContext('2d');
+      
+      const M = 16;
+      const N = 16;
+      const BORDER = 1;
+      const DOT_RADIUS = 2;
+      
+      let cssSide;
+      let cell;
+      let dots = [];
+      let overlays = {};
+      let isReloading = false;
+      let seed = null;
+      let data = null;
 
-  function renderGrid() {
-    ctx.clearRect(0, 0, cssSide, cssSide);
-    const halfB = BORDER / 2;
+      async function fetchData() {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate RPI
+        try {
+          const res = await fetch('/api/data');
+          const json = await res.json();
+          seed = json.seed;
+          data = json.data;
+        } catch (e) {
+          console.error('Failed to fetch data:', e);
+        }
+      }
 
-    // Grid lines
-    ctx.strokeStyle = '#bbb';
-    ctx.lineWidth = BORDER;
-    ctx.beginPath();
-    for (let i = 0; i <= M; i++) {
-      const pos = i * cell;
-      ctx.moveTo(pos, 0); ctx.lineTo(pos, cssSide);
-      ctx.moveTo(0, pos); ctx.lineTo(cssSide, pos);
-    }
-    ctx.stroke();
-    ctx.strokeRect(halfB, halfB, cssSide - BORDER, cssSide - BORDER);
+      async function generateProof(i, j) {
+        const inputs = { s: seed.toString(), i, j };
+        const { proof } = await snarkjs.groth16.fullProve(
+          inputs,
+          'lsbcheck.wasm',
+          'lsbcheck.zkey'
+        );
+        return proof;
+      }
 
-    // Draw dots
-    ctx.fillStyle = '#fff';
-    dots.forEach(d => {
-      if (!d) return;
-      ctx.beginPath();
-      ctx.arc(d.cx, d.cy, DOT_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-    });
+      function showQRCode(obj) {
+        qrcode.innerHTML = '';
+        qrcode.style.display = 'block';
+        QRCode.toCanvas(
+          JSON.stringify(obj),
+          { errorCorrectionLevel: 'M' },
+          (err, canvas) => {
+            if (err) console.error(err);
+            else qrcode.appendChild(canvas);
+          }
+        );
+      }
+      
+      function showError() {
+        qrcode.innerHTML = '';
+        qrcode.style.display = 'block';
+        const errorCanvas = document.createElement('canvas');
+        errorCanvas.width = 300;
+        errorCanvas.height = 300;
+        const ecx = errorCanvas.getContext('2d');
+        ecx.beginPath();
+        ecx.arc(150, 150, 120, 0, Math.PI * 2);
+        ecx.fillStyle = '#f44336';
+        ecx.fill();
+        ecx.strokeStyle = '#fff';
+        ecx.lineWidth = 32;
+        ecx.beginPath();
+        ecx.moveTo(90, 90);
+        ecx.lineTo(210, 210);
+        ecx.moveTo(210, 90);
+        ecx.lineTo(90, 210);
+        ecx.stroke();
+        qrcode.appendChild(errorCanvas);
+      }
 
-    // Draw overlays
-    for (const key in overlays) {
-      const idx = parseInt(key, 10);
-      const row = Math.floor(idx / M);
-      const col = idx % M;
-      ctx.fillStyle = overlays[key].color;
-      ctx.fillRect(col * cell, row * cell, cell, cell);
-    }
-  }
+      qrcode.addEventListener('click', () => {
+        overlay.style.display = 'block';
+        qrcode.style.display = 'none';
+        qrcode.innerHTML = '';
+        spinner.style.display = 'block';
+        fetchData().finally(() => {
+          draw();
+          isReloading = false;
+          spinner.style.display = 'none';
+          overlay.style.display = 'none';
+        });
+      });
 
-  canvas.addEventListener('click', async e => {
-    if (isReloading) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const col = Math.floor(x / cell);
-    const row = Math.floor(y / cell);
-    const idx = row * M + col;
+      function draw() {
+        const dpr = window.devicePixelRatio || 1;
+        cssSide = Math.min(window.innerWidth, window.innerHeight) - 20;
+        canvas.style.width = cssSide + 'px';
+        canvas.style.height = cssSide + 'px';
+        canvas.width = cssSide * dpr;
+        canvas.height = cssSide * dpr;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+        cell = cssSide / M;
+        generateDots();
+        renderGrid();
+      }
 
-    if (idx === empty) {
-      if (isReloading) return;
-      isReloading = true;
+      function generateDots() {
+        dots = [];
+        if (!data) return;
+        for (const item of data) {
+          if (item.x === 0 && item.y === 0) {
+            dots.push(null);
+            continue;
+          }
+          const offsetX = ((item.x + 0.5) / N) * (cell - 8) + 4;
+          const offsetY = ((item.y + 0.5) / N) * (cell - 8) + 4;
+          const cx = item.j * cell + offsetX;
+          const cy = item.i * cell + offsetY;
+          dots.push({ cx, cy });
+        }
+      }
 
-      overlays[idx] = { color: 'rgba(0,255,0,0.5)' };
-      renderGrid();
+      function renderGrid() {
+        ctx.clearRect(0, 0, cssSide, cssSide);
+        const halfB = BORDER / 2;
+
+        // Grid lines
+        ctx.strokeStyle = '#bbb';
+        ctx.lineWidth = BORDER;
+        ctx.beginPath();
+        for (let k = 0; k <= M; k++) {
+          const pos = k * cell;
+          ctx.moveTo(pos, 0); ctx.lineTo(pos, cssSide);
+          ctx.moveTo(0, pos); ctx.lineTo(cssSide, pos);
+        }
+        ctx.stroke();
+        ctx.strokeRect(halfB, halfB, cssSide - BORDER, cssSide - BORDER);
+
+        // Draw dots
+        ctx.fillStyle = '#fff';
+        dots.forEach(d => {
+          if (!d) return;
+          ctx.beginPath();
+          ctx.arc(d.cx, d.cy, DOT_RADIUS, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Draw overlays
+        for (const key in overlays) {
+          const k = parseInt(key, 10);
+          const i = Math.floor(k / M);
+          const j = k % M;
+          ctx.fillStyle = overlays[k].color;
+          ctx.fillRect(j * cell, i * cell, cell, cell);
+        }
+      }
+
+      canvas.addEventListener('click', async e => {
+        if (isReloading) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const i = Math.floor(y / cell);
+        const j = Math.floor(x / cell);
+        const k = i * M + j;
+
+        // Regular cell
+        if (dots[k] !== null) {
+          overlays[k] = { color: 'rgba(255,0,0,0.5)' };
+          renderGrid();
+
+          setTimeout(() => {
+            delete overlays[k];
+            renderGrid();
+          }, 1000);
+        
+        // Empty cell
+        } else {
+          isReloading = true;
+
+          overlays[k] = { color: 'rgba(0,255,0,0.5)' };
+          renderGrid();
+          spinner.style.display = 'block';
+          overlay.style.display = 'block';
+
+          setTimeout(() => {
+            overlays = {};
+            renderGrid();
+          }, 500);
+
+          try {
+            const proof = await generateProof(i, j);
+            spinner.style.display = 'none';
+            showQRCode(proof);
+          } catch (err) {
+            spinner.style.display = 'none';
+            showError();
+          } finally {
+            isReloading = false;
+          }
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (data) draw();
+      });
+
       spinner.style.display = 'block';
-      overlay.style.display = 'block';
-
-      setTimeout(() => {
-        overlays = {};
-        renderGrid();
-      }, 500);
-
-
-      try {
-        const proof = await generateProof(row, col);
+      fetchData().finally(() => { 
         spinner.style.display = 'none';
-        showQRCode(proof);
-      } catch (err) {
-        console.error("Proof generation failed:", err);
-      } finally {
-        //spinner.style.display = 'none';
-        isReloading = false;
-      }
+        draw();
+      });
 
-      /*setTimeout(() => {
-        overlays = {};
-        renderGrid();
-      }, 500);
-   
-      try {
-        const { proof, publicSignals } = await generateProof(row, col);
-        showQRCode({ proof, publicSignals });
-      } catch (err) {
-        console.error("Proof generation failed:", err);
-      }
-   
-      fetchData().finally(() => {
-        isReloading = false;
-        spinner.style.display = 'none';
-        overlay.style.display = 'none';
-      });*/
-
-    } else {
-      overlays[idx] = { color: 'rgba(255,0,0,0.5)' };
-      renderGrid();
-
-      setTimeout(() => {
-        delete overlays[idx];
-        renderGrid();
-      }, 1000);
-    }
-  });
-
-  window.addEventListener('resize', () => {
-    if (data) draw();
-  });
-
-  spinner.style.display = 'block';
-  fetchData().finally(() => { spinner.style.display = 'none' });
-
-})();
-</script>
-</body>
+    })();
+    </script>
+  </body>
 </html>
