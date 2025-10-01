@@ -84,7 +84,7 @@
       let data = null;
 
       async function fetchData() {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate RPI
+        // await new Promise(resolve => setTimeout(resolve, 2000));
         try {
           const res = await fetch('/api/data');
           const json = await res.json();
@@ -140,17 +140,18 @@
         qrcode.appendChild(errorCanvas);
       }
 
-      qrcode.addEventListener('click', () => {
+      qrcode.addEventListener('click', async () => {
         overlay.style.display = 'block';
         qrcode.style.display = 'none';
         qrcode.innerHTML = '';
         spinner.style.display = 'block';
-        fetchData().finally(() => {
-          draw();
-          isReloading = false;
-          spinner.style.display = 'none';
-          overlay.style.display = 'none';
-        });
+        if (window.dataPromise && window.dataPromise.then) {
+          await window.dataPromise;
+        }
+        draw();
+        isReloading = false;
+        spinner.style.display = 'none';
+        overlay.style.display = 'none';
       });
 
       function draw() {
@@ -252,6 +253,8 @@
             renderGrid();
           }, 500);
 
+          window.dataPromise = fetchData();
+
           try {
             const proof = await generateProof(i, j);
             spinner.style.display = 'none';
@@ -259,8 +262,6 @@
           } catch (err) {
             spinner.style.display = 'none';
             showError();
-          } finally {
-            isReloading = false;
           }
         }
       });
