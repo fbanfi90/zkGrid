@@ -59,7 +59,7 @@
     </style>
   </head>
   <body>
-      <div id="mainflex" style="display:flex;flex-direction:column;height:100vh;width:100vw;">
+  <div id="mainflex" style="display:flex;flex-direction:column;width:100vw;">
   <div id="toggleRow" style="display:none;align-items:center;justify-content:center;">
           <span style="color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-weight:600;">Solve</span>
           <label id="toggleSwitch" style="position:relative;display:inline-block;width:48px;height:24px;margin:0 16px;">
@@ -83,6 +83,12 @@
     <script src='https://unpkg.com/qr-code-styling@latest/lib/qr-code-styling.js'></script>
     <script>
     (() => {
+      // Dynamically set mainflex height for mobile viewport consistency
+      function setMainflexHeight() {
+        document.getElementById('mainflex').style.height = window.innerHeight + 'px';
+      }
+      setMainflexHeight();
+      window.addEventListener('resize', setMainflexHeight);
       // Toggle switch visual logic
       const toggleInput = document.getElementById('toggleInput');
       const toggleKnob = document.getElementById('toggleKnob');
