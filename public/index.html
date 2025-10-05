@@ -106,6 +106,10 @@
           const checkboxRow = document.getElementById('checkboxRow');
           const camera = document.getElementById('cameraStream');
           const canvas = document.getElementById('grid');
+          const qrcode = document.getElementById("qrcode");
+          
+          qrcode.innerHTML = '';
+          qrcode.style.display = 'none';
           
           toggleInput.disabled = true;
           toggleKnob.style.background = '#f44336';
