@@ -135,7 +135,15 @@
             camera.style.display = 'block';
             toggleKnob.style.left = '26px';
             try {
-              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              //const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              let stream;
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: { facingMode: { exact: "environment" } }
+                });
+              } catch {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              }
               camera.srcObject = stream;
               toggleKnob.style.background = '#2196f3';  // blue = ready/verify
             } catch (err) {
