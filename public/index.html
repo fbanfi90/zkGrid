@@ -149,12 +149,14 @@
 
               const scanCanvas = document.createElement('canvas');
               const scanCtx = scanCanvas.getContext('2d');
+              let scanningActive = true;
 
               async function verifyProofFromQR(data) {
                 try {
-                  const proof = JSON.parse(data);
+                  const parsed = JSON.parse(data);
+                  const proof = parsed.proof || parsed;           // handle both shapes
+                  const publicSignals = parsed.publicSignals || [];
                   const vkey = await vkeyPromise;
-                  const publicSignals = [];
                   const valid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
                   showVerifyResult(valid);
                 } catch (e) {
@@ -164,6 +166,7 @@
               }
 
               function showVerifyResult(valid) {
+                scanningActive = false;
                 const qrcode = document.getElementById('qrcode');
                 qrcode.innerHTML = '';
                 qrcode.style.display = 'block';
@@ -190,26 +193,31 @@
                 }
                 ctx.stroke();
                 qrcode.appendChild(canvas);
+
+                // allow click to resume scanning
+                qrcode.onclick = () => {
+                  qrcode.innerHTML = '';
+                  qrcode.style.display = 'none';
+                  scanningActive = true;
+                  requestAnimationFrame(scanLoop);
+                };
               }
 
               function scanLoop() {
-                if (!camera.srcObject) return;
+                if (!scanningActive || !camera.srcObject) return;
                 scanCanvas.width = camera.videoWidth;
                 scanCanvas.height = camera.videoHeight;
                 scanCtx.drawImage(camera, 0, 0, scanCanvas.width, scanCanvas.height);
                 const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
-                if (code) {
-                  verifyProofFromQR(code.data);
-                } else {
-                  requestAnimationFrame(scanLoop);
-                }
+                if (code) verifyProofFromQR(code.data);
+                else requestAnimationFrame(scanLoop);
               }
 
               camera.addEventListener('playing', () => {
+                scanningActive = true;
                 requestAnimationFrame(scanLoop);
               }, { once: true });
-
 
               toggleKnob.style.background = '#2196f3';  // blue = ready/verify
             } catch (err) {
