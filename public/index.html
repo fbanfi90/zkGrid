@@ -87,6 +87,7 @@
     <div id='spinner'></div>
     <script src='https://cdn.jsdelivr.net/npm/snarkjs@0.7.4/build/snarkjs.min.js'></script>
     <script src='https://unpkg.com/qr-code-styling@latest/lib/qr-code-styling.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script>
     (() => {
       // Dynamically set mainflex height for mobile viewport consistency
@@ -145,6 +146,71 @@
                 stream = await navigator.mediaDevices.getUserMedia({ video: true });
               }
               camera.srcObject = stream;
+
+              const scanCanvas = document.createElement('canvas');
+              const scanCtx = scanCanvas.getContext('2d');
+
+              async function verifyProofFromQR(data) {
+                try {
+                  const proof = JSON.parse(data);
+                  const vkey = await vkeyPromise;
+                  const publicSignals = [];
+                  const valid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
+                  showVerifyResult(valid);
+                } catch (e) {
+                  console.error(e);
+                  showVerifyResult(false);
+                }
+              }
+
+              function showVerifyResult(valid) {
+                const qrcode = document.getElementById('qrcode');
+                qrcode.innerHTML = '';
+                qrcode.style.display = 'block';
+                const canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                ctx.beginPath();
+                ctx.arc(150, 150, 120, 0, Math.PI * 2);
+                ctx.fillStyle = valid ? '#4caf50' : '#f44336';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 32;
+                ctx.beginPath();
+                if (valid) {
+                  ctx.moveTo(100, 150);
+                  ctx.lineTo(140, 190);
+                  ctx.lineTo(200, 110);
+                } else {
+                  ctx.moveTo(90, 90);
+                  ctx.lineTo(210, 210);
+                  ctx.moveTo(210, 90);
+                  ctx.lineTo(90, 210);
+                }
+                ctx.stroke();
+                qrcode.appendChild(canvas);
+              }
+
+              function scanLoop() {
+                if (!camera.srcObject) return;
+                scanCanvas.width = camera.videoWidth;
+                scanCanvas.height = camera.videoHeight;
+                scanCtx.drawImage(camera, 0, 0, scanCanvas.width, scanCanvas.height);
+                const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                if (code) {
+                  verifyProofFromQR(code.data);
+                } else {
+                  requestAnimationFrame(scanLoop);
+                }
+              }
+
+              camera.addEventListener('playing', () => {
+                requestAnimationFrame(scanLoop);
+              }, { once: true });
+
+
               toggleKnob.style.background = '#2196f3';  // blue = ready/verify
             } catch (err) {
               console.error('Camera access failed:', err);
@@ -171,6 +237,7 @@
 
       const wasmPromise = fetch('lsbcheck.wasm').then(r => r.arrayBuffer());
       const zkeyPromise = fetch('lsbcheck.zkey').then(r => r.arrayBuffer());
+      const vkeyPromise = fetch('vkey.json').then(r => r.json());
 
       const M = 16;
       const N = 16;
