@@ -59,24 +59,30 @@
     </style>
   </head>
   <body>
-  <div id="mainflex" style="display:flex;flex-direction:column;width:100vw;">
-  <div id="toggleRow" style="display:none;align-items:center;justify-content:center;">
-          <span style="color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-weight:600;">Solve</span>
-          <label id="toggleSwitch" style="position:relative;display:inline-block;width:48px;height:24px;margin:0 16px;">
-            <input id="toggleInput" type="checkbox" style="opacity:0;width:0;height:0;" checked>
-            <span id="toggleBg" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#444;border-radius:24px;transition:.2s;"></span>
-            <span id="toggleKnob" style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:#4caf50;border-radius:50%;transition:.2s;"></span>
-          </label>
-          <span style="color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-weight:600;">Verify</span>
-        </div>
-        <div id="gridRow" style="display:flex;align-items:center;justify-content:center;min-height:0;"><div id="gridbox" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;"><canvas id='grid'></canvas><div id='qrcode'></div></div></div>
-  <div id="checkboxRow" style="display:none;align-items:center;justify-content:center;">
-          <div style="background:#333;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;">
-            <input type="checkbox" id="qrProofCheckbox" checked style="width:20px;height:20px;accent-color:#4caf50;">
-            <label for="qrProofCheckbox" style="cursor:pointer;user-select:none;font-weight:400;">Generate ZK Proof</label>
-          </div>
+    <div id="mainflex" style="display:flex;flex-direction:column;width:100vw;">
+      <div id="toggleRow" style="display:none;align-items:center;justify-content:center;">
+      <span style="color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-weight:600;">Solve</span>
+        <label id="toggleSwitch" style="position:relative;display:inline-block;width:48px;height:24px;margin:0 16px;">
+          <input id="toggleInput" type="checkbox" style="opacity:0;width:0;height:0;" checked>
+          <span id="toggleBg" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#444;border-radius:24px;transition:.2s;"></span>
+          <span id="toggleKnob" style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:#4caf50;border-radius:50%;transition:.2s;"></span>
+        </label>
+        <span style="color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-weight:600;">Verify</span>
+      </div>
+      <div id="gridRow" style="display:flex;align-items:center;justify-content:center;min-height:0;">
+        <div id="gridbox" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <canvas id='grid'></canvas>
+          <video id="cameraStream" autoplay playsinline style="display:none;width:100%;height:100%;object-fit:cover;border:2px solid #fff;border-radius:8px;"></video>
+          <div id='qrcode'></div>
         </div>
       </div>
+      <div id="checkboxRow" style="display:none;align-items:center;justify-content:center;">
+        <div style="background:#333;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;">
+          <input type="checkbox" id="qrProofCheckbox" checked style="width:20px;height:20px;accent-color:#4caf50;">
+          <label for="qrProofCheckbox" style="cursor:pointer;user-select:none;font-weight:400;">Generate ZK Proof</label>
+        </div>
+      </div>
+    </div>
     <div id='overlay'></div>
     <div id='spinner'></div>
     <script src='https://cdn.jsdelivr.net/npm/snarkjs@0.7.4/build/snarkjs.min.js'></script>
@@ -89,17 +95,55 @@
       }
       setMainflexHeight();
       window.addEventListener('resize', setMainflexHeight);
+
       // Toggle switch visual logic
       const toggleInput = document.getElementById('toggleInput');
       const toggleKnob = document.getElementById('toggleKnob');
       if (toggleInput && toggleKnob) {
-        toggleInput.addEventListener('change', () => {
+        toggleInput.addEventListener('change', async () => {
+          const gridRow = document.getElementById('gridRow');
+          const checkboxRow = document.getElementById('checkboxRow');
+          const camera = document.getElementById('cameraStream');
+          const canvas = document.getElementById('grid');
+          
+          toggleInput.disabled = true;
+          toggleKnob.style.background = '#f44336';
+          
+          // Solve mode
           if (toggleInput.checked) {
-            toggleKnob.style.left = '2px';
-            toggleKnob.style.background = '#4caf50';
+            try {
+              if (camera.srcObject) {
+                camera.srcObject.getTracks().forEach(t => t.stop());
+                camera.srcObject = null;
+              }
+              gridRow.style.display = 'flex';
+              checkboxRow.style.display = 'flex';
+              canvas.style.display = 'block';
+              camera.style.display = 'none';
+              toggleKnob.style.left = '2px';
+            } finally {
+              // Unlock and mark ready (green)
+              toggleKnob.style.background = '#4caf50';
+              toggleInput.disabled = false;
+            }
+
+          // Verify mode
           } else {
+            gridRow.style.display = 'flex';
+            checkboxRow.style.display = 'none';
+            canvas.style.display = 'none';
+            camera.style.display = 'block';
             toggleKnob.style.left = '26px';
-            toggleKnob.style.background = '#2196f3';
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              camera.srcObject = stream;
+              toggleKnob.style.background = '#2196f3';  // blue = ready/verify
+            } catch (err) {
+              console.error('Camera access failed:', err);
+              toggleKnob.style.background = '#f44336';
+            } finally {
+              toggleInput.disabled = false;
+            }
           }
         });
         // Set initial position
@@ -267,8 +311,8 @@
         canvas.height = gridSize * dpr;
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
-  cssSide = gridSize;
-  cell = gridSize / M;
+        cssSide = gridSize;
+        cell = gridSize / M;
         generateDots();
         renderGrid();
       }
@@ -376,7 +420,12 @@
           } else {
             // Only spinner, no QR, wait for data fetch
             try {
-              await window.dataPromise;
+              const fetchPromise = window.dataPromise;
+              // wait 500ms in parallel with fetch
+              await Promise.all([
+                fetchPromise,
+                new Promise(resolve => setTimeout(resolve, 500))
+              ]);
               draw();
               isReloading = false;
               spinner.style.display = 'none';
