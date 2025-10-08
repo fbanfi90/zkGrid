@@ -180,6 +180,10 @@
                 qrcode.style.display = 'block';
                 qrcode.classList.add('transparent');
                 const canvas = document.createElement('canvas');
+                canvas.style.position = 'absolute';
+                canvas.style.top = '50%';
+                canvas.style.left = '50%';
+                canvas.style.transform = 'translate(-50%, -50%)';
                 canvas.width = 300;
                 canvas.height = 300;
                 const ctx = canvas.getContext('2d');
