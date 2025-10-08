@@ -80,11 +80,56 @@
           <video id="cameraStream" autoplay playsinline style="display:none;width:100%;height:100%;object-fit:cover;border:2px solid #fff;border-radius:8px;"></video>
           <div id='qrcode' style="width:92%;height:92%"></div>
         </div>
+        <div id="infoOverlay" style="
+          position:absolute;
+          top:50%;
+          left:50%;
+          transform:translate(-50%,-50%);
+          width:92%;
+          height:92%;
+          aspect-ratio:1/1;
+          background:#333;
+          border-radius:8px;
+          color:#fff;
+          font-family:Helvetica,Arial,sans-serif;
+          font-size:1rem;
+          text-align:justify;
+          line-height:1.5;
+          padding:1.2em;
+          display:none;
+          z-index:20;
+          cursor:pointer;
+          box-sizing:border-box;
+          overflow:auto;
+        ">In this puzzle game you can prove in zero-knowledge (via zk-SNARKs) that you found the empty cell in a dotted grid, without revealing its location. The proof is generated using Groth16, and is displayed as a QR code. Open the app on another device and select 'verify' to validate QR proofs. Zero-knowledge guarantees that the data in the QR code contains no information about the empty cell location!
+        <br />
+        <br />
+        Copyright (c) 2025 Fabio Banfi (<a href="https://fabiobanfi.com"
+          style="color:#aaddff;text-decoration:none;transition:color 0.15s ease-in-out;"
+          onmouseover="this.style.color='#cce8ff'"
+          onmouseout="this.style.color='#aaddff'">https://fabiobanfi.com</a>)
+        </div>
       </div>
       <div id="checkboxRow" style="display:none;align-items:center;justify-content:center;">
         <div style="background:#333;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;">
           <input type="checkbox" id="qrProofCheckbox" checked style="width:20px;height:20px;accent-color:#4caf50;">
           <label for="qrProofCheckbox" style="cursor:pointer;user-select:none;font-weight:400;">Generate ZK Proof</label>
+          <button id="infoButton" title="About" style="
+            background:#555;
+            color:#fff;
+            border:none;
+            border-radius:50%;
+            width:22px;
+            height:22px;
+            font-weight:700;
+            font-family:serif;
+            font-style:italic;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            line-height:1;
+          ">i</button>
         </div>
       </div>
     </div>
@@ -542,6 +587,28 @@
       window.addEventListener('resize', () => {
         if (data) draw();
       });
+
+      const infoButton = document.getElementById('infoButton');
+      const infoOverlay = document.getElementById('infoOverlay');
+      const gridbox = document.getElementById('gridbox');
+
+      if (infoButton && infoOverlay && gridbox) {
+        infoButton.onclick = () => {
+          // ensure correct scaling to grid
+          const side = gridbox.offsetWidth * 0.92;
+          infoOverlay.style.width = side + 'px';
+          infoOverlay.style.height = side + 'px';
+          infoOverlay.style.display = 'block';
+        };
+        infoOverlay.onclick = () => infoOverlay.style.display = 'none';
+        window.addEventListener('resize', () => {
+          if (infoOverlay.style.display === 'block') {
+            const side = gridbox.offsetWidth * 0.92;
+            infoOverlay.style.width = side + 'px';
+            infoOverlay.style.height = side + 'px';
+          }
+        });
+      }
 
       spinner.style.display = 'block';
       fetchData().finally(() => { 
