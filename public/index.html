@@ -56,6 +56,11 @@
         display: none;
         z-index: 15;
       }
+      #qrcode.transparent {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+      }
     </style>
   </head>
   <body>
@@ -73,7 +78,7 @@
         <div id="gridbox" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;">
           <canvas id='grid'></canvas>
           <video id="cameraStream" autoplay playsinline style="display:none;width:100%;height:100%;object-fit:cover;border:2px solid #fff;border-radius:8px;"></video>
-          <div id='qrcode'></div>
+          <div id='qrcode' style="width:92%;height:92%"></div>
         </div>
       </div>
       <div id="checkboxRow" style="display:none;align-items:center;justify-content:center;">
@@ -173,6 +178,7 @@
                 const qrcode = document.getElementById('qrcode');
                 qrcode.innerHTML = '';
                 qrcode.style.display = 'block';
+                qrcode.classList.add('transparent');
                 const canvas = document.createElement('canvas');
                 canvas.width = 300;
                 canvas.height = 300;
@@ -293,11 +299,12 @@
       function showQRCode(obj) {
         qrcode.innerHTML = '';
         qrcode.style.display = 'block';
+        qrcode.classList.remove('transparent');
         new QRCodeStyling({
           'type': 'canvas',
           'shape': 'square',
-          'width': 280,
-          'height': 280,
+          'width': 1024,
+          'height': 1024,
           'data': JSON.stringify(obj),
           'margin': 0,
           'qrOptions': {
@@ -336,6 +343,7 @@
       function showError() {
         qrcode.innerHTML = '';
         qrcode.style.display = 'block';
+        qrcode.classList.add('transparent');
         const errorCanvas = document.createElement('canvas');
         errorCanvas.width = 300;
         errorCanvas.height = 300;
