@@ -253,7 +253,7 @@
       const M = 16;
       const N = 16;
       const BORDER = 1;
-      const DOT_RADIUS = 2;
+      const DOT_DIAMETER_RATIO = 0.12;
       
       let cssSide;
       let cell;
@@ -435,12 +435,13 @@
         ctx.stroke();
         ctx.strokeRect(halfB, halfB, cssSide - BORDER, cssSide - BORDER);
 
-        // Draw dots
+        // Draw dots (diameter = DOT_DIAMETER_RATIO * cell)
         ctx.fillStyle = '#fff';
+        const dotRadius = (cell * DOT_DIAMETER_RATIO) / 2;
         dots.forEach(d => {
           if (!d) return;
           ctx.beginPath();
-          ctx.arc(d.cx, d.cy, DOT_RADIUS, 0, Math.PI * 2);
+          ctx.arc(d.cx, d.cy, dotRadius, 0, Math.PI * 2);
           ctx.fill();
         });
 
