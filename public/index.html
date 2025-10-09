@@ -61,6 +61,14 @@
         padding: 0;
         border-radius: 0;
       }
+      #infoOverlay a {
+        color: #aaddff;
+        text-decoration: none;
+        transition: color 0.15s ease-in-out;
+      }
+      #infoOverlay a:hover {
+        color: #cce8ff;
+      }
     </style>
   </head>
   <body>
@@ -85,10 +93,9 @@
           top:50%;
           left:50%;
           transform:translate(-50%,-50%);
-          width:92%;
-          height:92%;
+          width:100%;
+          height:100%;
           aspect-ratio:1/1;
-          background:#333;
           border-radius:8px;
           color:#fff;
           font-family:Helvetica,Arial,sans-serif;
@@ -101,13 +108,10 @@
           cursor:pointer;
           box-sizing:border-box;
           overflow:auto;
-        ">In this puzzle game you can prove in zero-knowledge (via zk-SNARKs) that you found the empty cell in a dotted grid, without revealing its location. The proof is generated using Groth16, and is displayed as a QR code. Open the app on another device and select 'verify' to validate QR proofs. Zero-knowledge guarantees that the data in the QR code contains no information about the empty cell location!
+        ">In this puzzle game you can prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> (via <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a>) that you found the empty cell in a dotted grid, without revealing its location. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to validate QR proofs. Zero-knowledge guarantees that the data in the QR code contains no information about the empty cell location!
         <br />
         <br />
-        Copyright (c) 2025 Fabio Banfi (<a href="https://fabiobanfi.com"
-          style="color:#aaddff;text-decoration:none;transition:color 0.15s ease-in-out;"
-          onmouseover="this.style.color='#cce8ff'"
-          onmouseout="this.style.color='#aaddff'">https://fabiobanfi.com</a>)
+        Copyright (c) 2025 Fabio Banfi (<a href="https://fabiobanfi.com">fabiobanfi.com</a>)
         </div>
       </div>
       <div id="checkboxRow" style="display:none;align-items:center;justify-content:center;">
@@ -593,14 +597,24 @@
       const gridbox = document.getElementById('gridbox');
 
       if (infoButton && infoOverlay && gridbox) {
-        infoButton.onclick = () => {
-          // ensure correct scaling to grid
+        // open (stop propagation so document click won't immediately close it)
+        infoButton.addEventListener('click', e => {
+          e.stopPropagation();
+          overlay.style.display = 'block';
           const side = gridbox.offsetWidth * 0.92;
           infoOverlay.style.width = side + 'px';
           infoOverlay.style.height = side + 'px';
           infoOverlay.style.display = 'block';
-        };
-        infoOverlay.onclick = () => infoOverlay.style.display = 'none';
+        });
+
+        // close when clicking anywhere on the page except links inside the info box or the info button itself
+        document.addEventListener('click', e => {
+          if (infoOverlay.style.display !== 'block') return;
+          if (e.target.closest('#infoOverlay a')) return;    // allow links
+          if (e.target.closest('#infoButton')) return;        // clicking the i should not close
+          overlay.style.display = 'none';
+          infoOverlay.style.display = 'none';
+        });
         window.addEventListener('resize', () => {
           if (infoOverlay.style.display === 'block') {
             const side = gridbox.offsetWidth * 0.92;
@@ -609,6 +623,10 @@
           }
         });
       }
+      
+      document.querySelectorAll('#infoOverlay a').forEach(a => {
+        a.addEventListener('click', e => e.stopPropagation());
+      });
 
       spinner.style.display = 'block';
       fetchData().finally(() => { 
