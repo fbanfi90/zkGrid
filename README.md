@@ -1,2 +1,3 @@
 # zkGrid
-A puzzle game where players prove in zero-knowledge (via zk-SNARKs) that they found the empty cell in a dotted grid, without revealing its location.
+
+This puzzle game uses [zk-SNARKs](https://en.wikipedia.org/wiki/ZkSNARK) to enable you to prove in [zero-knowledge](https://en.wikipedia.org/wiki/Zero-knowledge_proof) that you found the empty cell in a dotted grid, that is, without revealing its location. The proof is generated with [Circom](https://docs.circom.io/) and [snarkjs](https://github.com/iden3/snarkjs) using the [Groth16](https://eprint.iacr.org/2016/260) proving system and is displayed as a QR code. Open the app on another device and select **Verify** to validate QR proofs. Zero-knowledge guarantees that the data in the QR code contains no information about the empty cell location.
