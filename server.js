@@ -76,7 +76,7 @@ if (cluster.isPrimary) {
         const i = empty[0], j = empty[1];
         const h = poseidon([seed, i, j]);
         const hex = BigInt(poseidon.F.toObject(h)).toString(16).padStart(64, '0');
-        console.log(`${now()} W${workerId} found instance in ${it} it. for ${ip}`);
+        console.log(`${now()} W${workerId} got instance in ${it} tries for ${ip}`);
         
         return { seed: seed.toString(), data };
       }
