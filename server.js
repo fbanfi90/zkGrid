@@ -43,7 +43,7 @@ if (cluster.isPrimary) {
     let d = new Date();
     return d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0') + ' ' +
+      String(d.getDate()).padStart(2, '0') + 'T' +
       String(d.getHours()).padStart(2, '0') + ':' +
       String(d.getMinutes()).padStart(2, '0') + ':' +
       String(d.getSeconds()).padStart(2, '0');
@@ -51,7 +51,7 @@ if (cluster.isPrimary) {
 
   function generateData(ip) {
     const workerId = cluster.worker?.id;
-    console.log(`[${now()}] W${workerId}: generating new data for ${ip}`);
+    console.log(`${now()} W${workerId} generating new instance for ${ip}`);
     let it = 1;
     while (true) {
       const seed = BigInt('0x' + crypto.randomBytes(16).toString('hex'))
@@ -76,7 +76,7 @@ if (cluster.isPrimary) {
         const i = empty[0], j = empty[1];
         const h = poseidon([seed, i, j]);
         const hex = BigInt(poseidon.F.toObject(h)).toString(16).padStart(64, '0');
-        console.log(`[${now()}] W${workerId}: found instance in ${it} tries for ${ip} (${i},${j})`);
+        console.log(`${now()} W${workerId} found instance in ${it} it. for ${ip}`);
         
         return { seed: seed.toString(), data };
       }
