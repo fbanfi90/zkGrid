@@ -113,7 +113,7 @@
           box-sizing:border-box;
           overflow:auto;
         ">
-          This puzzle game uses <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a> to enable you to prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> that you found the empty cell in a dotted grid, that is, without revealing its location. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to validate QR proofs. The QR code also contains the puzzle's seed, so the verifier is shown the exact grid the proof is for. Zero-knowledge guarantees that the proof itself reveals nothing about the empty cell location.
+          This puzzle game uses <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a> to enable you to prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> that you found the empty cell in a dotted grid, that is, without revealing its location. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to validate QR proofs. Each puzzle has a code (its seed) shown below the grid. A valid proof shows the same code on the verifier, so the verifier can check that the proof is for that exact puzzle. Zero-knowledge guarantees that the proof itself reveals nothing about the empty cell location.
           Get the code at:
           <br />
           <br />
@@ -124,7 +124,7 @@
           Copyright (c) 2025 Fabio Banfi (<a href="https://fabiobanfi.com">fabiobanfi.com</a>).
         </div>
       </div>
-      <div id="checkboxRow" style="display:none;align-items:center;justify-content:center;">
+      <div id="checkboxRow" style="display:none;position:relative;align-items:center;justify-content:center;">
         <div style="background:#333;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;">
           <input type="checkbox" id="qrProofCheckbox" checked style="width:20px;height:20px;accent-color:#4caf50;">
           <label for="qrProofCheckbox" style="cursor:pointer;user-select:none;font-weight:400;">Generate ZK Proof</label>
@@ -145,6 +145,8 @@
             line-height:1;
           ">i</button>
         </div>
+        <!-- Pinned to the bottom of the row so the button stays centered -->
+        <div id="seedCode" title="Puzzle code: a verifier checks that the proof shows the same code" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#bbb;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.95em;letter-spacing:0.05em;"></div>
       </div>
     </div>
     <div id='overlay'></div>
@@ -160,6 +162,11 @@
       }
       setMainflexHeight();
       window.addEventListener('resize', setMainflexHeight);
+
+      // Puzzle code: the full 128-bit seed in hex, grouped by 4 (a partial code could be forged by picking a matching seed)
+      function seedCode(s) {
+        return BigInt(s).toString(16).toUpperCase().padStart(32, '0').match(/.{4}/g).join(' ');
+      }
 
       // Toggle switch visual logic
       const toggleInput = document.getElementById('toggleInput');
@@ -181,7 +188,6 @@
           // Solve mode
           if (toggleInput.checked) {
             try {
-              hideVerifiedGrid();
               if (camera.srcObject) {
                 camera.srcObject.getTracks().forEach(t => t.stop());
                 camera.srcObject = null;
@@ -226,16 +232,14 @@
                   if (!/^\d{1,39}$/.test(s)) throw new Error('missing or invalid seed');
                   const vkey = await vkeyPromise;
                   const valid = await snarkjs.groth16.verify(vkey, [s], proof);
-                  // Show the grid the proof is bound to
-                  if (valid) await showVerifiedGrid(s);
-                  showVerifyResult(valid);
+                  showVerifyResult(valid, s);
                 } catch (e) {
                   console.error(e);
                   showVerifyResult(false);
                 }
               }
 
-              function showVerifyResult(valid) {
+              function showVerifyResult(valid, s) {
                 scanningActive = false;
                 const qrcode = document.getElementById('qrcode');
                 qrcode.innerHTML = '';
@@ -247,8 +251,22 @@
                 canvas.style.left = '50%';
                 canvas.style.transform = 'translate(-50%, -50%)';
                 canvas.width = 300;
-                canvas.height = 300;
+                canvas.height = valid ? 400 : 300;
                 const ctx = canvas.getContext('2d');
+                // Puzzle code the proof is bound to, to compare with the solver's code
+                if (valid) {
+                  const [line1, line2] = [seedCode(s).slice(0, 19), seedCode(s).slice(20)];
+                  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                  ctx.beginPath();
+                  ctx.roundRect(4, 300, 292, 92, 12);
+                  ctx.fill();
+                  ctx.fillStyle = '#fff';
+                  ctx.font = '600 24px ui-monospace, Menlo, Consolas, monospace';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+                  ctx.fillText(line1, 150, 330);
+                  ctx.fillText(line2, 150, 362);
+                }
                 ctx.beginPath();
                 ctx.arc(150, 150, 120, 0, Math.PI * 2);
                 ctx.fillStyle = valid ? '#4caf50' : '#f44336';
@@ -273,7 +291,6 @@
                 qrcode.onclick = () => {
                   qrcode.innerHTML = '';
                   qrcode.style.display = 'none';
-                  hideVerifiedGrid();
                   scanningActive = true;
                   requestAnimationFrame(scanLoop);
                 };
@@ -352,30 +369,6 @@
       let isReloading = false;
       let seed = null;
       let data = null;
-      let verifiedData = null; // grid of a verified proof, shown instead of the own puzzle in Verify mode
-
-      async function showVerifiedGrid(s) {
-        try {
-          const res = await fetch('/api/grid?seed=' + s);
-          if (!res.ok) return;
-          verifiedData = (await res.json()).data;
-          document.getElementById('cameraStream').style.display = 'none';
-          canvas.style.display = 'block';
-          draw();
-        } catch (e) {
-          console.error('Failed to fetch verified grid:', e);
-        }
-      }
-
-      function hideVerifiedGrid() {
-        if (!verifiedData) return;
-        verifiedData = null;
-        draw();
-        if (!toggleInput.checked) {
-          canvas.style.display = 'none';
-          document.getElementById('cameraStream').style.display = 'block';
-        }
-      }
 
       async function fetchData() {
         // await new Promise(resolve => setTimeout(resolve, 2000));
@@ -392,10 +385,10 @@
         }
       }
 
-      async function generateProof(i, j) {
+      async function generateProof(s, i, j) {
         const wasm = await wasmPromise;
         const zkey = await zkeyPromise;
-        const inputs = { s: seed.toString(), i, j };
+        const inputs = { s: s.toString(), i, j };
         const { proof, publicSignals } = await snarkjs.groth16.fullProve(
           inputs,
           new Uint8Array(wasm),
@@ -479,8 +472,10 @@
           let sideSpace = (vh - gridSize) / 2;
           topH = bottomH = sideSpace;
         } else {
-          topH = bottomH = 64;
-          gridSize = Math.min(vw - 2 * margin, vh - 2 * topH - 2 * margin);
+          // Bottom row is taller to fit the puzzle code below the centered button
+          topH = 64;
+          bottomH = 104;
+          gridSize = Math.min(vw - 2 * margin, vh - topH - bottomH - 2 * margin);
         }
         // Set heights for top/bottom rows
         document.getElementById('toggleRow').style.height = topH + 'px';
@@ -497,15 +492,15 @@
         ctx.scale(dpr, dpr);
         cssSide = gridSize;
         cell = gridSize / M;
+        document.getElementById('seedCode').textContent = seed ? seedCode(seed) : '';
         generateDots();
         renderGrid();
       }
 
       function generateDots() {
         dots = [];
-        const grid = verifiedData || data;
-        if (!grid) return;
-        for (const item of grid) {
+        if (!data) return;
+        for (const item of data) {
           if (item.x === 0 && item.y === 0) {
             dots.push(null);
             continue;
@@ -555,7 +550,7 @@
       }
 
       canvas.addEventListener('click', async e => {
-        if (isReloading || verifiedData) return;
+        if (isReloading) return;
 
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -591,11 +586,13 @@
             renderGrid();
           }, 500);
 
+          // Keep the solved puzzle's seed: fetchData() replaces it with the next puzzle's
+          const solvedSeed = seed;
           window.dataPromise = fetchData();
 
           if (qrProofCheckbox && qrProofCheckbox.checked) {
             try {
-              const proof = await generateProof(i, j);
+              const proof = await generateProof(solvedSeed, i, j);
               spinner.style.display = 'none';
               showQRCode(proof);
             } catch (err) {

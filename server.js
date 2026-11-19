@@ -34,13 +34,6 @@ if (cluster.isPrimary) {
       res.json(result);
     });
 
-    // Grid for a given seed, used by the verifier to show which puzzle a proof is for
-    app.get('/api/grid', (req, res) => {
-      const s = String(req.query.seed ?? '');
-      if (!/^\d{1,39}$/.test(s) || BigInt(s) >= 2n ** 128n) return res.status(400).json({ error: 'invalid seed' });
-      res.json({ seed: s, data: computeGrid(BigInt(s)).data });
-    });
-
     app.listen(PORT, () => {
       console.log(`Server listening at http://localhost:${PORT}`);
     });
@@ -56,32 +49,35 @@ if (cluster.isPrimary) {
       String(d.getSeconds()).padStart(2, '0');
   }
 
-  function computeGrid(seed) {
-    let count = 0;
-    const data = [];
-    for (let i = 0; i < GRID; i++) {
-      for (let j = 0; j < GRID; j++) {
-        const h = poseidon([seed, i, j]);
-        const hex = BigInt(poseidon.F.toObject(h)).toString(16).padStart(64, '0');
-        const firstByte = parseInt(hex.slice(62, 64), 16);
-        if (firstByte === 0) count++;
-        data.push({ i, j, x: (firstByte >> 4) & 0x0f, y: firstByte & 0x0f });
-      }
-    }
-    return { count, data };
-  }
-
   function generateData(ip) {
     const workerId = cluster.worker?.id;
     console.log(`${now()} W${workerId} generating new instance for ${ip}`);
     let it = 1;
     while (true) {
-      const seed = BigInt('0x' + crypto.randomBytes(16).toString('hex'));
-      const { count, data } = computeGrid(seed);
+      const seed = BigInt('0x' + crypto.randomBytes(16).toString('hex'))
+      let count = 0, empty = null;
+      const data = [];
+
+      for (let i = 0; i < GRID; i++) {
+        for (let j = 0; j < GRID; j++) {
+          const h = poseidon([seed, i, j]);
+          const hex = BigInt(poseidon.F.toObject(h)).toString(16).padStart(64, '0');
+          const firstByte = parseInt(hex.slice(62, 64), 16);
+          if (firstByte === 0) {
+            count++;
+            empty = [i, j];
+          }
+          data.push({ i, j, x: (firstByte >> 4) & 0x0f, y: firstByte & 0x0f });
+        }
+      }
       it++;
 
       if (count === 1) {
+        const i = empty[0], j = empty[1];
+        const h = poseidon([seed, i, j]);
+        const hex = BigInt(poseidon.F.toObject(h)).toString(16).padStart(64, '0');
         console.log(`${now()} W${workerId} got instance in ${it} tries for ${ip}`);
+        
         return { seed: seed.toString(), data };
       }
     }
