@@ -86,7 +86,7 @@
         </label>
         <span style="color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-weight:600;">Verify</span>
       </div>
-      <div id="gridRow" style="display:flex;align-items:center;justify-content:center;min-height:0;">
+      <div id="gridRow" style="position:relative;display:flex;align-items:center;justify-content:center;min-height:0;">
         <div id="gridbox" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;">
           <canvas id='grid'></canvas>
           <video id="cameraStream" autoplay playsinline style="display:none;width:100%;height:100%;object-fit:cover;border:2px solid #fff;border-radius:8px;"></video>
@@ -113,15 +113,15 @@
           box-sizing:border-box;
           overflow:auto;
         ">
-          This puzzle game uses <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a> to enable you to prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> that you found the empty cell in a dotted grid, that is, without revealing its location. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to validate QR proofs. Each puzzle has a code (its seed) shown below the grid. A valid proof shows the same code on the verifier, so the verifier can check that the proof is for that exact puzzle. Zero-knowledge guarantees that the proof itself reveals nothing about the empty cell location.
-          Get the code at:
+          This puzzle game uses <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a> to let you prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> that you found the empty cell in a dotted grid, without revealing where it is. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to scan it: a valid proof shows the same puzzle code as the one under the solved grid. Zero-knowledge guarantees that the proof reveals nothing about the empty cell location.
+          Source code at:
           <br />
           <br />
           <p style="text-align:center;margin:0;">
             <a href="https://github.com/fbanfi90/zkGrid">github.com/fbanfi90/zkGrid</a>.
           </p>
           <br />
-          Copyright (c) 2025 Fabio Banfi (<a href="https://fabiobanfi.com">fabiobanfi.com</a>).
+          Copyright (c) 2025–2026 Fabio Banfi (<a href="https://fabiobanfi.com">fabiobanfi.com</a>).
         </div>
       </div>
       <div id="checkboxRow" style="display:none;position:relative;align-items:center;justify-content:center;">
@@ -175,6 +175,13 @@
         document.getElementById('seedCode').textContent = seed ? seedCode(seed) : '';
       }
 
+      // The code is only useful with a proof, so show it only when "Generate ZK Proof" is checked
+      function updateSeedCodeVisibility() {
+        const checked = document.getElementById('qrProofCheckbox').checked;
+        document.getElementById('seedCode').style.display = checked ? 'block' : 'none';
+      }
+      document.getElementById('qrProofCheckbox').addEventListener('change', updateSeedCodeVisibility);
+
       // Toggle switch visual logic
       const toggleInput = document.getElementById('toggleInput');
       const toggleKnob = document.getElementById('toggleKnob');
@@ -202,7 +209,7 @@
               gridRow.style.display = 'flex';
               checkboxRow.style.display = 'flex';
               document.getElementById('proofBox').style.display = 'flex';
-              document.getElementById('seedCode').style.display = 'block';
+              updateSeedCodeVisibility();
               document.getElementById('verifyCode').style.display = 'none';
               canvas.style.display = 'block';
               camera.style.display = 'none';
