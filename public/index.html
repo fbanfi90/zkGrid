@@ -125,7 +125,7 @@
         </div>
       </div>
       <div id="checkboxRow" style="display:none;position:relative;align-items:center;justify-content:center;">
-        <div style="background:#333;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;">
+        <div id="proofBox" style="background:#333;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:#fff;font-size:1.1em;font-family:'Inter','Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;">
           <input type="checkbox" id="qrProofCheckbox" checked style="width:20px;height:20px;accent-color:#4caf50;">
           <label for="qrProofCheckbox" style="cursor:pointer;user-select:none;font-weight:400;">Generate ZK Proof</label>
           <button id="infoButton" title="About" style="
@@ -145,8 +145,10 @@
             line-height:1;
           ">i</button>
         </div>
-        <!-- Pinned to the bottom of the row so the button stays centered -->
-        <div id="seedCode" title="Puzzle code: a verifier checks that the proof shows the same code" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#bbb;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.95em;letter-spacing:0.05em;"></div>
+        <!-- Pinned to the bottom of the row so the button stays centered; above #overlay (z 5) so it stays bright next to the QR -->
+        <div id="seedCode" title="Puzzle code: a verifier checks that the proof shows the same code" style="position:absolute;z-index:6;bottom:6px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#bbb;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.95em;letter-spacing:0.05em;"></div>
+        <!-- Verify mode: code of the last verified proof, centered under the camera box -->
+        <div id="verifyCode" style="display:none;white-space:nowrap;color:#bbb;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.95em;letter-spacing:0.05em;"></div>
       </div>
     </div>
     <div id='overlay'></div>
@@ -166,6 +168,11 @@
       // Puzzle code: the full 128-bit seed in hex, grouped by 4 (a partial code could be forged by picking a matching seed)
       function seedCode(s) {
         return BigInt(s).toString(16).toUpperCase().padStart(32, '0').match(/.{4}/g).join(' ');
+      }
+
+      // Called only when a new puzzle is shown (not on resize), so it keeps matching the QR on screen
+      function showSeedCode() {
+        document.getElementById('seedCode').textContent = seed ? seedCode(seed) : '';
       }
 
       // Toggle switch visual logic
@@ -194,6 +201,9 @@
               }
               gridRow.style.display = 'flex';
               checkboxRow.style.display = 'flex';
+              document.getElementById('proofBox').style.display = 'flex';
+              document.getElementById('seedCode').style.display = 'block';
+              document.getElementById('verifyCode').style.display = 'none';
               canvas.style.display = 'block';
               camera.style.display = 'none';
               toggleKnob.style.left = '2px';
@@ -206,7 +216,12 @@
           // Verify mode
           } else {
             gridRow.style.display = 'flex';
-            checkboxRow.style.display = 'none';
+            // Keep the bottom row (same space under the camera box), showing only the verified code
+            document.getElementById('proofBox').style.display = 'none';
+            document.getElementById('seedCode').style.display = 'none';
+            const verifyCode = document.getElementById('verifyCode');
+            verifyCode.textContent = '';
+            verifyCode.style.display = 'block';
             canvas.style.display = 'none';
             camera.style.display = 'block';
             toggleKnob.style.left = '26px';
@@ -251,22 +266,10 @@
                 canvas.style.left = '50%';
                 canvas.style.transform = 'translate(-50%, -50%)';
                 canvas.width = 300;
-                canvas.height = valid ? 400 : 300;
+                canvas.height = 300;
                 const ctx = canvas.getContext('2d');
                 // Puzzle code the proof is bound to, to compare with the solver's code
-                if (valid) {
-                  const [line1, line2] = [seedCode(s).slice(0, 19), seedCode(s).slice(20)];
-                  ctx.fillStyle = 'rgba(0,0,0,0.75)';
-                  ctx.beginPath();
-                  ctx.roundRect(4, 300, 292, 92, 12);
-                  ctx.fill();
-                  ctx.fillStyle = '#fff';
-                  ctx.font = '600 24px ui-monospace, Menlo, Consolas, monospace';
-                  ctx.textAlign = 'center';
-                  ctx.textBaseline = 'middle';
-                  ctx.fillText(line1, 150, 330);
-                  ctx.fillText(line2, 150, 362);
-                }
+                document.getElementById('verifyCode').textContent = valid ? seedCode(s) : '';
                 ctx.beginPath();
                 ctx.arc(150, 150, 120, 0, Math.PI * 2);
                 ctx.fillStyle = valid ? '#4caf50' : '#f44336';
@@ -291,6 +294,7 @@
                 qrcode.onclick = () => {
                   qrcode.innerHTML = '';
                   qrcode.style.display = 'none';
+                  document.getElementById('verifyCode').textContent = '';
                   scanningActive = true;
                   requestAnimationFrame(scanLoop);
                 };
@@ -455,6 +459,7 @@
           await window.dataPromise;
         }
         draw();
+        showSeedCode();
         isReloading = false;
         spinner.style.display = 'none';
         overlay.style.display = 'none';
@@ -492,7 +497,6 @@
         ctx.scale(dpr, dpr);
         cssSide = gridSize;
         cell = gridSize / M;
-        document.getElementById('seedCode').textContent = seed ? seedCode(seed) : '';
         generateDots();
         renderGrid();
       }
@@ -610,6 +614,7 @@
                 new Promise(resolve => setTimeout(resolve, 500))
               ]);
               draw();
+              showSeedCode();
               isReloading = false;
               spinner.style.display = 'none';
               overlay.style.display = 'none';
@@ -667,6 +672,7 @@
       fetchData().finally(() => { 
         spinner.style.display = 'none';
         draw();
+        showSeedCode();
       });
 
     })();
