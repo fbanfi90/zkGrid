@@ -8,6 +8,7 @@ set -Eeuo pipefail
 IN=input
 OUT=output
 TMP=tmp
+SNARKJS="npx --yes snarkjs@0.7.5"
 
 # Setup
 mkdir -p $TMP
@@ -22,7 +23,7 @@ if ! node $OUT/lsbcheck_js/generate_witness.js $OUT/lsbcheck_js/lsbcheck.wasm $I
 fi
 
 # Generate proof
-if snarkjs groth16 prove $OUT/lsbcheck.zkey $TMP/witness.wtns $OUT/proof.json $OUT/public.json >/dev/null 2>&1; then
+if $SNARKJS groth16 prove $OUT/lsbcheck.zkey $TMP/witness.wtns $OUT/proof.json $OUT/public.json >/dev/null 2>&1; then
     echo -e '\033[0;32mSUCCESS\033[0m'
 else
     echo -e '\033[0;31mFAILURE\033[0m'

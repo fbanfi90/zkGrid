@@ -25,7 +25,7 @@ template LSBCheck() {
     poseidon.inputs[2] <== j;
 
     // === Decompose hash output ===
-    component hashBits = Num2Bits(254);
+    component hashBits = Num2Bits_strict();
     hashBits.in <== poseidon.out;
 
     // === Constrain lowest 8 bits of hash to be 0 ===
