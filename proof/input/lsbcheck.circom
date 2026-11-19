@@ -34,4 +34,5 @@ template LSBCheck() {
   }
 }
 
-component main = LSBCheck();
+// The seed is public so that a proof is bound to one specific grid
+component main {public [s]} = LSBCheck();

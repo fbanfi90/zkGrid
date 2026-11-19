@@ -113,7 +113,7 @@
           box-sizing:border-box;
           overflow:auto;
         ">
-          This puzzle game uses <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a> to enable you to prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> that you found the empty cell in a dotted grid, that is, without revealing its location. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to validate QR proofs. Zero-knowledge guarantees that the data in the QR code contains no information about the empty cell location.
+          This puzzle game uses <a href="https://en.wikipedia.org/wiki/ZkSNARK">zk-SNARKs</a> to enable you to prove in <a href="https://en.wikipedia.org/wiki/Zero-knowledge_proof">zero-knowledge</a> that you found the empty cell in a dotted grid, that is, without revealing its location. The proof is generated with <a href="https://docs.circom.io/">Circom</a> and <a href="https://github.com/iden3/snarkjs">snarkjs</a> using the <a href="https://eprint.iacr.org/2016/260">Groth16</a> proving system and is displayed as a QR code. Open the app on another device and select <b>Verify</b> to validate QR proofs. The QR code also contains the puzzle's seed, so the verifier is shown the exact grid the proof is for. Zero-knowledge guarantees that the proof itself reveals nothing about the empty cell location.
           Get the code at:
           <br />
           <br />
@@ -181,6 +181,7 @@
           // Solve mode
           if (toggleInput.checked) {
             try {
+              hideVerifiedGrid();
               if (camera.srcObject) {
                 camera.srcObject.getTracks().forEach(t => t.stop());
                 camera.srcObject = null;
@@ -221,10 +222,12 @@
 
               async function verifyProofFromQR(data) {
                 try {
-                  const proof = JSON.parse(data);
-                  const public = [];
+                  const { proof, s } = JSON.parse(data);
+                  if (!/^\d{1,39}$/.test(s)) throw new Error('missing or invalid seed');
                   const vkey = await vkeyPromise;
-                  const valid = await snarkjs.groth16.verify(vkey, public, proof);
+                  const valid = await snarkjs.groth16.verify(vkey, [s], proof);
+                  // Show the grid the proof is bound to
+                  if (valid) await showVerifiedGrid(s);
                   showVerifyResult(valid);
                 } catch (e) {
                   console.error(e);
@@ -270,6 +273,7 @@
                 qrcode.onclick = () => {
                   qrcode.innerHTML = '';
                   qrcode.style.display = 'none';
+                  hideVerifiedGrid();
                   scanningActive = true;
                   requestAnimationFrame(scanLoop);
                 };
@@ -348,6 +352,30 @@
       let isReloading = false;
       let seed = null;
       let data = null;
+      let verifiedData = null; // grid of a verified proof, shown instead of the own puzzle in Verify mode
+
+      async function showVerifiedGrid(s) {
+        try {
+          const res = await fetch('/api/grid?seed=' + s);
+          if (!res.ok) return;
+          verifiedData = (await res.json()).data;
+          document.getElementById('cameraStream').style.display = 'none';
+          canvas.style.display = 'block';
+          draw();
+        } catch (e) {
+          console.error('Failed to fetch verified grid:', e);
+        }
+      }
+
+      function hideVerifiedGrid() {
+        if (!verifiedData) return;
+        verifiedData = null;
+        draw();
+        if (!toggleInput.checked) {
+          canvas.style.display = 'none';
+          document.getElementById('cameraStream').style.display = 'block';
+        }
+      }
 
       async function fetchData() {
         // await new Promise(resolve => setTimeout(resolve, 2000));
@@ -368,12 +396,13 @@
         const wasm = await wasmPromise;
         const zkey = await zkeyPromise;
         const inputs = { s: seed.toString(), i, j };
-        const { proof } = await snarkjs.groth16.fullProve(
+        const { proof, publicSignals } = await snarkjs.groth16.fullProve(
           inputs,
           new Uint8Array(wasm),
           new Uint8Array(zkey)
         );
-        return proof;
+        // The QR carries the proof and the public seed it is bound to
+        return { proof, s: publicSignals[0] };
       }
 
       async function showQRCode(obj) {
@@ -474,8 +503,9 @@
 
       function generateDots() {
         dots = [];
-        if (!data) return;
-        for (const item of data) {
+        const grid = verifiedData || data;
+        if (!grid) return;
+        for (const item of grid) {
           if (item.x === 0 && item.y === 0) {
             dots.push(null);
             continue;
@@ -525,7 +555,7 @@
       }
 
       canvas.addEventListener('click', async e => {
-        if (isReloading) return;
+        if (isReloading || verifiedData) return;
 
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
