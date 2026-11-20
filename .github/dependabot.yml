@@ -1,0 +1,19 @@
+# Dependabot: GitHub opens PRs when dependencies have updates (https://docs.github.com/code-security/dependabot)
+version: 2
+updates:
+  # npm packages (package.json / package-lock.json), all grouped in one PR
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7 # wait a week after a release before proposing it
+    groups:
+      npm:
+        patterns: ["*"]
+
+  # Docker base image (FROM line in Dockerfile)
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
