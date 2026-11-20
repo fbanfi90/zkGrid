@@ -7,6 +7,7 @@ set -Eeuo pipefail
 
 # Settings
 IN=input
+CIRCOMLIB_VERSION=v2.0.5
 CIRCOMSPECT_VERSION=0.9.0
 CIRCOMSPECT=bin/circomspect/bin/circomspect
 
@@ -20,7 +21,7 @@ if [ ! -x $CIRCOMSPECT ]; then
 fi
 
 # Get circomlib
-[ -d $IN/circomlib ] || git clone https://github.com/iden3/circomlib.git $IN/circomlib
+[ -d $IN/circomlib ] || git -c advice.detachedHead=false clone --depth 1 --branch $CIRCOMLIB_VERSION https://github.com/iden3/circomlib.git $IN/circomlib
 
 # Analyze circuit
 $CIRCOMSPECT -L $IN "$@" $IN/lsbcheck.circom

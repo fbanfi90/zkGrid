@@ -6,6 +6,7 @@ set -Eeuo pipefail
 
 # Settings
 IN=input
+CIRCOMLIB_VERSION=v2.0.5
 OUT=output
 TMP=tmp
 SNARKJS="npx --yes snarkjs@0.7.5"
@@ -31,7 +32,7 @@ if [ ! -x $CIRCOM ]; then
 fi
 
 # Process circuit
-[ -d $IN/circomlib ] || git clone https://github.com/iden3/circomlib.git $IN/circomlib
+[ -d $IN/circomlib ] || git -c advice.detachedHead=false clone --depth 1 --branch $CIRCOMLIB_VERSION https://github.com/iden3/circomlib.git $IN/circomlib
 $CIRCOM $IN/lsbcheck.circom --r1cs --wasm -l $IN -o $OUT
 cp $OUT/lsbcheck_js/lsbcheck.wasm $OUT/lsbcheck.wasm
 
