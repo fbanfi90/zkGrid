@@ -13,6 +13,22 @@ When you tap the empty cell, the browser ([public/index.html](public/index.html)
 
 The hash is split into bits with `Num2Bits_strict`, which ensures there is only one valid bit pattern (see [Circuit check](#circuit-check)).
 
+## Running
+
+```bash
+docker compose up -d
+```
+
+The app is then available at `http://localhost:9075`. Without Docker, run `npm ci && npm start`.
+
+To publish it through a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), with no ports opened, copy `.env.example` to `.env` and set `TUNNEL_TOKEN`. Point the tunnel's public hostname at `http://app:9075`, then run:
+
+```bash
+docker compose --profile tunnel up -d
+```
+
+Both containers restart automatically, including after a reboot, as long as the Docker service starts at boot.
+
 ## Proof pipeline
 
 The [proof/](proof/) folder rebuilds the files the app serves from `public/`. Run the scripts from inside `proof/` with bash (Linux, macOS or WSL). They need `node`/`npx`, `git` and `curl`. circom (v2.2.2) and snarkjs (v0.7.5) are pinned and fetched locally, so nothing is installed system-wide.

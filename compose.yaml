@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    init: true # forwards stop signals to node so the container stops promptly
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9075:9075" # local access only; remove if you only serve through the tunnel
+
+  # Optional: expose the app through a Cloudflare Tunnel, without opening any ports.
+  # Enable with: docker compose --profile tunnel up -d
+  # Needs TUNNEL_TOKEN in .env, and the tunnel's public hostname pointed at http://app:9075
+  tunnel:
+    image: cloudflare/cloudflared:latest # Cloudflare supports releases for ~1 year; update with docker compose pull
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+    restart: unless-stopped
+    depends_on:
+      - app
+    profiles:
+      - tunnel
